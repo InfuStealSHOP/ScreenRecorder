@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Screen Recorder — YouTube-ready (HTML)</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#10b981;--muted:#94a3b8;--glass:rgba(255,255,255,0.03)}
+    html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(180deg,#071026 0%, #071a2a 100%);color:#e6eef8}
+    .wrap{max-width:980px;margin:28px auto;padding:20px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);box-shadow:0 6px 30px rgba(2,6,23,0.6)}
+    h1{margin:0 0 6px;font-size:20px}
+    p.lead{margin:0 0 16px;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1fr 340px;gap:16px}
+    .card{background:var(--card);padding:14px;border-radius:10px}
+    label{display:block;font-size:13px;margin-bottom:6px;color:var(--muted)}
+    select,input[type=text],button{font-size:14px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .row{display:flex;gap:8px;align-items:center}
+    .controls{display:flex;gap:8px;flex-wrap:wrap}
+    button.primary{background:linear-gradient(90deg,var(--accent),#06b6d4);border:none;color:#042021;font-weight:700}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04)}
+    .status{font-size:13px;color:var(--muted);margin-top:8px}
+    video#preview{width:100%;height:240px;background:#000;border-radius:8px;object-fit:cover}
+    .small{font-size:12px;color:var(--muted)}
+    .checkbox{display:flex;gap:8px;align-items:center}
+    .meter{height:8px;background:rgba(255,255,255,0.04);border-radius:999px;overflow:hidden}
+    .meter > i{display:block;height:100%;width:0;background:linear-gradient(90deg,#06b6d4,var(--accent))}
+    footer{margin-top:10px;color:var(--muted);font-size:12px}
+    .preview-wrapper{position:relative}
+    .camera-preview{position:absolute;right:10px;bottom:10px;width:160px;height:120px;border-radius:8px;background:#000;border:2px solid rgba(255,255,255,0.05);overflow:hidden;display:flex;align-items:center;justify-content:center}
+    .camera-preview video{width:100%;height:100%;object-fit:cover}
+    @media (max-width:900px){.grid{grid-template-columns:1fr;}.camera-preview{position:static;width:120px;height:90px;margin-top:10px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Screen Recorder — YouTube-ready</h1>
+    <p class="lead">Record your screen (and optionally webcam + mic) directly in the browser. Outputs a high-quality .webm file you can upload to YouTube or edit in your favorite editor.</p>
+
+    <div class="grid">
+      <div>
+        <div class="card">
+          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div>
+              <label class="small">Status</label>
+              <div id="statusText">Idle</div>
+            </div>
+            <div style="text-align:right">
+              <label class="small">Timer</label>
+              <div id="timer">00:00:00</div>
+            </div>
+          </div>
+
+          <div class="preview-wrapper">
+            <video id="preview" autoplay muted playsinline></video>
+            <div class="camera-preview" id="cameraPreview" style="display:none">
+              <video id="camVid" autoplay muted playsinline></video>
+            </div>
+          </div>
+
+          <div style="height:10px"></div>
+
+          <div class="row" style="margin-bottom:10px;gap:10px">
+            <button id="startBtn" class="primary">Start Recording</button>
+            <button id="pauseBtn" class="ghost" disabled>Pause</button>
+            <button id="stopBtn" class="ghost" disabled>Stop</button>
+            <button id="downloadBtn" class="ghost" disabled>Download</button>
+          </div>
+
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            <label class="checkbox"><input type="checkbox" id="includeMic" checked> Include microphone</label>
+            <label class="checkbox"><input type="checkbox" id="includeWebcam"> Include webcam overlay</label>
+            <label class="checkbox"><input type="checkbox" id="showCamPreview" checked> Show camera preview</label>
+          </div>
+
+          <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+            <label style="min-width:70px" class="small">Frame rate</label>
+            <select id="frameRateSelect">
+              <option value="15">15 fps (small file)</option>
+              <option value="24">24 fps — cinematic</option>
+              <option value="30" selected>30 fps — good for YouTube</option>
+              <option value="60">60 fps — smooth (larger)</option>
+            </select>
+            <label style="min-width:90px;margin-left:10px" class="small">Video quality</label>
+            <select id="mimeSelect">
+              <option value="video/webm;codecs=vp9">webm (VP9) — high quality</option>
+              <option value="video/webm;codecs=vp8">webm (VP8) — compatible</option>
+            </select>
+          </div>
+
+          <div class="status" id="notes">Tip: Use Chrome or Edge for best results. Screen capture requires user permission.</div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <label class="small">Clips</label>
+          <div id="clipsList" class="small">No recordings yet.</div>
+        </div>
+
+      </div>
+
+      <div>
+        <div class="card">
+          <label class="small">Preview (live)</label>
+          <div style="height:6px"></div>
+          <div class="meter"><i id="meterBar"></i></div>
+
+          <div style="height:10px"></div>
+          <label class="small">Filename prefix</label>
+          <input type="text" id="filePrefix" placeholder="recording" value="recording">
+
+          <div style="height:10px"></div>
+          <label class="small">Countdown before start</label>
+          <select id="countdown">
+            <option value="0">0 sec</option>
+            <option value="3">3 sec</option>
+            <option value="5">5 sec</option>
+            <option value="10">10 sec</option>
+          </select>
+
+          <div style="height:12px"></div>
+
+          <label class="small">Microphone input</label>
+          <select id="micSelect"></select>
+
+          <div style="height:10px"></div>
+          <label class="small">Camera input</label>
+          <select id="camSelect"></select>
+
+          <div style="height:10px"></div>
+          <div class="small">Recorded format: <span id="formatLabel">webm</span></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <label class="small">How to use</label>
+          <ol class="small">
+            <li>Pick frame rate, format and optional microphone/webcam.</li>
+            <li>Click <strong>Start Recording</strong>. Grant permissions.</li>
+            <li>Use <strong>Pause</strong> / <strong>Stop</strong>. Click <strong>Download</strong> to save .webm.</li>
+            <li>Upload the .webm to your editor or directly to YouTube.</li>
+          </ol>
+        </div>
+
+      </div>
+    </div>
+
+    <footer>Built with the MediaRecorder & getDisplayMedia APIs • Works best in Chromium-based browsers.</footer>
+  </div>
+
+  <script>
+    // Helpful utilities
+    const $ = id => document.getElementById(id);
+    const startBtn = $('startBtn'), pauseBtn = $('pauseBtn'), stopBtn = $('stopBtn'), downloadBtn = $('downloadBtn');
+    const preview = $('preview'), camVid = $('camVid'), cameraPreview = $('cameraPreview');
+    const includeMic = $('includeMic'), includeWebcam = $('includeWebcam'), showCamPreview = $('showCamPreview');
+    const micSelect = $('micSelect'), camSelect = $('camSelect');
+    const frameRateSelect = $('frameRateSelect'), mimeSelect = $('mimeSelect');
+    const statusText = $('statusText'), timer = $('timer'), clipsList = $('clipsList');
+    const prefixInput = $('filePrefix'), countdownSel = $('countdown'), meterBar = $('meterBar'), formatLabel = $('formatLabel');
+
+    let displayStream = null;        // screen stream
+    let micStream = null;            // mic stream
+    let camStream = null;            // webcam stream
+    let recorder = null;             // MediaRecorder
+    let recordedBlobs = [];
+    let recordingStart = 0;          // timestamp
+    let timerInterval = null;
+
+    // Canvas-based composition: draw screen + webcam into a canvas then record that canvas stream (so overlays are included)
+    let canvas, ctx, compositeStream, drawLoopHandle;
+
+    function setStatus(s){ statusText.textContent = s }
+
+    function secondsToHMS(s){
+      s = Math.floor(s);
+      const h = String(Math.floor(s/3600)).padStart(2,'0');
+      const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+      const sec = String(s%60).padStart(2,'0');
+      return `${h}:${m}:${sec}`;
+    }
+
+    function updateTimer(){
+      const secs = Math.floor((Date.now() - recordingStart)/1000);
+      timer.textContent = secondsToHMS(secs);
+      // simple meter animation based on seconds
+      const pct = Math.min(100, Math.floor((secs%10)/10 * 100));
+      meterBar.style.width = pct + '%';
+    }
+
+    // populate device lists
+    async function updateDevices(){
+      try{
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const mics = devices.filter(d => d.kind === 'audioinput');
+        const cams = devices.filter(d => d.kind === 'videoinput');
+        micSelect.innerHTML = '';
+        camSelect.innerHTML = '';
+        mics.forEach(d=>{ const o = document.createElement('option'); o.value=d.deviceId; o.textContent = d.label || 'Microphone'; micSelect.appendChild(o) });
+        cams.forEach(d=>{ const o = document.createElement('option'); o.value=d.deviceId; o.textContent = d.label || 'Camera'; camSelect.appendChild(o) });
+      }catch(e){ console.warn('enumerateDevices failed',e) }
+    }
+
+    // call on load
+    updateDevices();
+    navigator.mediaDevices.addEventListener('devicechange', updateDevices);
+
+    // request screen and optionally mic/cam, then create composite canvas
+    async function prepareStreams(){
+      // stop previous
+      if(displayStream){ stopTracks(displayStream); displayStream = null }
+      if(micStream){ stopTracks(micStream); micStream = null }
+      if(camStream){ stopTracks(camStream); camStream = null }
+
+      // request display
+      const fps = parseInt(frameRateSelect.value,10) || 30;
+      try{
+        displayStream = await navigator.mediaDevices.getDisplayMedia({video:{frameRate:fps}, audio:true});
+      }catch(e){ throw new Error('Screen capture denied or unavailable.') }
+
+      // microphone
+      if(includeMic.checked){
+        const micId = micSelect.value || undefined;
+        try{ micStream = await navigator.mediaDevices.getUserMedia({audio: micId?{deviceId:micId}:{}, video:false}); }catch(e){ console.warn('mic denied',e); micStream = null }
+      }
+
+      // webcam
+      if(includeWebcam.checked){
+        const camId = camSelect.value || undefined;
+        try{ camStream = await navigator.mediaDevices.getUserMedia({video: camId?{deviceId:camId, width:320, height:240}:{width:320,height:240}, audio:false}); }catch(e){ console.warn('cam denied',e); camStream = null }
+      }
+
+      // prepare preview of the raw display (not recording composition) to show user
+      try{ preview.srcObject = displayStream }catch(e){ console.warn('preview failed', e) }
+
+      // camera preview visibility
+      if(camStream && showCamPreview.checked){ cameraPreview.style.display = 'block'; camVid.srcObject = camStream } else { cameraPreview.style.display = 'none'; camVid.srcObject = null }
+
+      // create canvas to composite if webcam included, otherwise we can record displayStream directly (but compositing gives consistent results)
+      const track = displayStream.getVideoTracks()[0];
+      const settings = track.getSettings();
+      const w = settings.width || 1280;
+      const h = settings.height || 720;
+
+      canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      ctx = canvas.getContext('2d');
+
+      // composite stream from canvas
+      compositeStream = canvas.captureStream(fps);
+
+      // combine audio tracks: prefer displayStream audio + mic
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const dest = audioCtx.createMediaStreamDestination();
+
+      // helper to add stream to audio graph
+      function addAudioStream(s){
+        if(!s) return;
+        try{
+          const src = audioCtx.createMediaStreamSource(s);
+          src.connect(dest);
+        }catch(e){ console.warn('addAudioStream failed', e) }
+      }
+
+      // displayStream audio (e.g. system audio) may or may not exist depending on browser/platform
+      addAudioStream(displayStream);
+      addAudioStream(micStream);
+
+      // attach composed audio to compositeStream
+      dest.stream.getAudioTracks().forEach(t=>compositeStream.addTrack(t));
+
+      // return objects
+      return {displayStream, micStream, camStream, compositeStream, canvas, ctx};
+    }
+
+    function stopTracks(s){ if(!s) return; s.getTracks().forEach(t=>t.stop()) }
+
+    // draw loop: paint display frame then overlay webcam
+    function startDrawLoop(displayStream, camStream){
+      const displayTrack = displayStream.getVideoTracks()[0];
+      const displaySettings = displayTrack.getSettings();
+      const w = canvas.width, h = canvas.height;
+
+      const dispVideo = document.createElement('video');
+      dispVideo.srcObject = displayStream; dispVideo.muted = true; dispVideo.playsInline = true; dispVideo.autoplay = true;
+
+      const camVideo = camStream ? document.createElement('video') : null;
+      if(camVideo){ camVideo.srcObject = camStream; camVideo.muted = true; camVideo.playsInline = true; camVideo.autoplay = true }
+
+      function draw(){
+        try{
+          ctx.clearRect(0,0,w,h);
+          // draw screen
+          ctx.drawImage(dispVideo, 0, 0, w, h);
+          // webcam overlay bottom-right small
+          if(camVideo){
+            const cw = Math.floor(w*0.22); const ch = Math.floor(cw * (camVideo.videoHeight? camVideo.videoHeight/camVideo.videoWidth : 3/4));
+            const pad = 12;
+            const x = w - cw - pad; const y = h - ch - pad;
+            // rounded bg
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            roundRect(ctx, x-4, y-4, cw+8, ch+8, 10, true, false);
+            ctx.drawImage(camVideo, x, y, cw, ch);
+            // subtle border
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 2; roundRect(ctx, x-4, y-4, cw+8, ch+8, 10, false, true);
+          }
+        }catch(e){ /* drawing may fail while video not ready */ }
+        drawLoopHandle = requestAnimationFrame(draw);
+      }
+
+      // helper to draw rounded rect
+      function roundRect(ctx,x,y,w,h,r,fill,stroke){ if(typeof r==='undefined') r=5; ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); if(fill) ctx.fill(); if(stroke) ctx.stroke(); }
+
+      // start once videos can play
+      dispVideo.addEventListener('loadedmetadata', ()=>{ dispVideo.play(); if(camVideo) camVideo.addEventListener('loadedmetadata', ()=>camVideo.play()); draw(); });
+
+      // return stop function
+      return ()=>{ cancelAnimationFrame(drawLoopHandle); if(dispVideo.srcObject) dispVideo.srcObject = null; if(camVideo && camVideo.srcObject) camVideo.srcObject = null };
+    }
+
+    // start the whole recording
+    async function startRecording(){
+      setStatus('Preparing streams...');
+      try{
+        const count = parseInt(countdownSel.value,10) || 0;
+        if(count>0){
+          setStatus('Starting in ' + count + 's...');
+          for(let i=count;i>0;i--){ setStatus('Starting in ' + i + '...'); await new Promise(r=>setTimeout(r,1000)); }
+        }
+
+        const prepared = await prepareStreams();
+        // choose mimeType
+        const mime = mimeSelect.value;
+        formatLabel.textContent = mime.includes('vp9')? 'webm (vp9)' : 'webm (vp8)';
+
+        // if webcam included, composite via canvas
+        if(includeWebcam.checked && prepared.camStream){
+          const stopDraw = startDrawLoop(prepared.displayStream, prepared.camStream);
+          // record the canvas stream
+          recorder = new MediaRecorder(prepared.compositeStream, {mimeType:mime});
+        }else{
+          // no cam overlay — record the combined compositeStream (which still may include audio)
+          // but if no audio at all and includeMic false, record displayStream video only
+          let recStream = prepared.compositeStream;
+          if(!prepared.compositeStream.getAudioTracks().length && prepared.displayStream.getVideoTracks().length){
+            recStream = prepared.displayStream; // fallback
+          }
+          recorder = new MediaRecorder(recStream, {mimeType:mime});
+        }
+
+        recordedBlobs = [];
+        recorder.ondataavailable = e => { if(e.data && e.data.size>0) recordedBlobs.push(e.data) };
+        recorder.onstop = e => {
+          setStatus('Recording stopped');
+          stopBtn.disabled = true; pauseBtn.disabled = true; startBtn.disabled = false; downloadBtn.disabled = false; 
+          // list clip
+          const blob = new Blob(recordedBlobs, {type: recordedBlobs[0]?.type || 'video/webm'});
+          const url = URL.createObjectURL(blob);
+          const name = makeFilename();
+          const el = document.createElement('div');
+          el.innerHTML = `<div style="margin-bottom:8px"><strong>${name}</strong> — ${(blob.size/1024/1024).toFixed(2)} MB <div style="margin-top:6px"><a href="${url}" target="_blank">Preview</a> — <a href="#" data-name="${name}" class="dlLink">Download</a></div></div>`;
+          clipsList.prepend(el);
+          el.querySelector('.dlLink').addEventListener('click', (ev)=>{ ev.preventDefault(); downloadBlob(blob, name) });
+          // also enable main download button to download last
+          downloadBtn.dataset.url = url; downloadBtn.dataset.name = name; downloadBtn.disabled = false;
+        };
+
+        recorder.onerror = e => { console.error('Recorder error', e); setStatus('Recorder error: ' + e.message) };
+
+        recorder.start(100); // request small chunks
+        recordingStart = Date.now();
+        timerInterval = setInterval(updateTimer, 250);
+        setStatus('Recording...');
+        startBtn.disabled = true; stopBtn.disabled = false; pauseBtn.disabled = false; downloadBtn.disabled = true;
+
+      }catch(e){ console.error(e); setStatus('Failed to start: ' + (e.message || e)); }
+    }
+
+    function pauseRecording(){ if(!recorder) return; if(recorder.state==='recording'){ recorder.pause(); pauseBtn.textContent = 'Resume'; setStatus('Paused'); clearInterval(timerInterval) } else if(recorder.state==='paused'){ recorder.resume(); pauseBtn.textContent = 'Pause'; setStatus('Recording...'); recordingStart = Date.now() - parseTimer(timer.textContent)*1000; timerInterval = setInterval(updateTimer,250) } }
+
+    function stopRecording(){ if(!recorder) return; recorder.stop(); clearInterval(timerInterval); timer.textContent = '00:00:00'; }
+
+    function parseTimer(hms){ const [h,m,s] = hms.split(':').map(Number); return h*3600 + m*60 + s }
+
+    function makeFilename(){ const p = prefixInput.value || 'recording'; const now = new Date(); const stamp = now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+'-'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')+String(now.getSeconds()).padStart(2,'0'); return `${p}-${stamp}.webm`; }
+
+    function downloadBlob(blob, name){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 60000); }
+
+    // wire UI
+    startBtn.addEventListener('click', async ()=>{ await startRecording(); });
+    pauseBtn.addEventListener('click', ()=>{ pauseRecording() });
+    stopBtn.addEventListener('click', ()=>{ stopRecording(); });
+    downloadBtn.addEventListener('click', ()=>{
+      const url = downloadBtn.dataset.url; const name = downloadBtn.dataset.name || makeFilename(); if(url){ const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); } else if(recordedBlobs.length){ downloadBlob(new Blob(recordedBlobs, {type:recordedBlobs[0]?.type||'video/webm'}), name); }
+    });
+
+    // track recorder state to enable/disable buttons
+    document.addEventListener('visibilitychange', ()=>{ /* nothing for now */ });
+
+    // clean up on page unload
+    window.addEventListener('beforeunload', ()=>{ stopTracks(displayStream); stopTracks(micStream); stopTracks(camStream); if(recorder && recorder.state==='recording') recorder.stop(); });
+
+    // helper: stop all tracks of streams
+    function stopAllStreams(){ [displayStream, micStream, camStream].forEach(s=>stopTracks(s)); }
+
+    // small UX helpers
+    includeWebcam.addEventListener('change', ()=>{ if(!includeWebcam.checked) cameraPreview.style.display='none' });
+    showCamPreview.addEventListener('change', ()=>{ cameraPreview.style.display = showCamPreview.checked ? 'block' : 'none' });
+    mimeSelect.addEventListener('change', ()=>{ formatLabel.textContent = mimeSelect.value.includes('vp9')? 'webm (vp9)' : 'webm (vp8)'; });
+
+    // request permissions for devices (optional convenience)
+    async function primePermissions(){ try{ await navigator.mediaDevices.getUserMedia({audio:true,video:true}); }catch(e){ /* ignore */ } }
+    // primePermissions(); // uncomment to ask permissions on load
+
+  </script>
+</body>
+</html>
